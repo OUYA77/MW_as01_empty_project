@@ -6,26 +6,52 @@
     android:orientation="vertical"
     tools:context=".MainActivity">
 
-    <Button
+    <TextView
+        android:id="@+id/appNameTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="SecureGuard"
+        android:textSize="24sp"
+        android:layout_gravity="center" />
+
+    <TextView
+        android:id="@+id/appDescriptionTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="SecureGuard는 실시간으로 들어오는 사용자를 식별하고 앱을 통해 침입자를 방지하기 위한 안전 및 보안 솔루션입니다."
+        android:textSize="18sp"
+        android:layout_gravity="center" />
+
+    <!-- dialog_layout.xml -->
+    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
         android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:id="@+id/btn_load"
-        android:text="Load"
-        android:onClick="onClickForLoad"
-        />
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
-    <Button
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:id="@+id/btn_save"
-        android:text="Save"
-        android:onClick="onClickForSave"
-        />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="New information found. Accept or deny?"
+            android:textSize="18sp" />
 
-    <ImageView
-        android:layout_width="200dp"
-        android:layout_height="300dp"
-        android:id="@+id/imgView"
-        />
+        <ImageView
+            android:layout_width="200dp"
+            android:layout_height="300dp"
+            android:id="@+id/imgView"
+            android:layout_gravity="center" />
 
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Accept"
+            android:id="@+id/acceptButton"
+            android:layout_gravity="center" />
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Deny"
+            android:id="@+id/denyButton"
+            android:layout_gravity="center" />
+    </LinearLayout>
 </LinearLayout>

@@ -5,18 +5,16 @@ import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.Toast;
 
-import androidx.activity.ComponentActivity;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.compose.material3.MaterialTheme;
-import androidx.compose.runtime.BitwiseOperatorsKt;
-import androidx.compose.runtime.Composable;
-import androidx.compose.ui.Modifier;
-import androidx.compose.ui.tooling.preview.Preview;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -25,88 +23,128 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Scanner;
 
-
-public class MainActivity extends AppCompatActivity{
+public class MainActivity extends AppCompatActivity {
     ImageView imgView;
 
-    String imageUrl = "http://kiokahn.synology.me:30000/";
-    Bitmap bmImg =null;
+    String baseUrl = "http://10.0.2.2:8000";
+    Bitmap bmImg = null;
     CLoadImage task;
 
     @Override
-    protected void onCreate(Bundle savedInstanceState){
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        imgView=(ImageView) findViewById(R.id.imgView);
+        imgView = findViewById(R.id.imgView);
         task = new CLoadImage();
     }
+    /*
+    public void onClickForLoad(View v) {
+        // API를 호출하여 이미지 URL 가져오기
+        task.execute(baseUrl + "/api/get_dynamic_image_url/");
+    }*/
 
-    public void onClickForLoad(View v)
-    {
-        task.execute(imageUrl+"uploads/-/system/appearance/logo/1/Gazzi_Labs_CI_type_B_-_big_logo.png");
+    private final Handler handler = new Handler();
+    private final int delay = 60000; // 60초마다 API 호출 (원하는 주기로 수정 가능)
 
-        Toast.makeText(getApplicationContext(), "Load",Toast.LENGTH_LONG).show();
+    @Override
+    protected void onResume() {
+        super.onResume();
+        startRepeatingTask();
     }
 
-    public void onClickForSave(View v)
-    {
-        saveBitmaptoJpeg(bmImg,"DCIM","image");
-        Toast.makeText(getApplicationContext(),"Save", Toast.LENGTH_LONG).show();
+    @Override
+    protected void onPause() {
+        super.onPause();
+        stopRepeatingTask();
+    }
+
+    Runnable runnable = new Runnable() {
+        public void run() {
+            // 주기적으로 API 호출
+            task.execute(baseUrl + "/api/get_dynamic_image_url/");
+            handler.postDelayed(this, delay);
+        }
+    };
+
+    void startRepeatingTask() {
+        runnable.run();
+    }
+
+    void stopRepeatingTask() {
+        handler.removeCallbacks(runnable);
     }
 
 
-    private class CLoadImage extends AsyncTask<String, Integer, Bitmap> {
-
+    private class CLoadImage extends AsyncTask<String, Void, Bitmap> {
         @Override
-        protected Bitmap doInBackground(String... urls){
-            try{
-                URL myFileUrl= new URL(urls[0]);
-                HttpURLConnection conn=(HttpURLConnection) myFileUrl.openConnection();
-                conn.setDoInput(true);
-                conn.connect();
+        protected Bitmap doInBackground(String... urls) {
+            try {
+                // API 호출
+                URL apiUrl = new URL(urls[0]);
+                HttpURLConnection apiConn = (HttpURLConnection) apiUrl.openConnection();
+                apiConn.setDoInput(true);
+                apiConn.connect();
 
-                InputStream is = conn.getInputStream();
-                bmImg = BitmapFactory.decodeStream(is);
-            } catch(IOException e){
+                InputStream apiIs = apiConn.getInputStream();
+                Scanner scanner = new Scanner(apiIs).useDelimiter("\\A");
+                String jsonResponse = scanner.hasNext() ? scanner.next() : "";
+
+                // jsonResponse를 파싱하여 이미지 URL 추출
+                JSONObject response = new JSONObject(jsonResponse);
+                String image_url = response.optString("image_url");
+
+                // 이미지 URL을 백그라운드에서 가져오도록 설정
+                URL real_imageUrl = new URL(baseUrl + image_url);
+                HttpURLConnection imageConn = (HttpURLConnection) real_imageUrl.openConnection();
+                imageConn.setDoInput(true);
+                imageConn.connect();
+
+                InputStream imageIs = imageConn.getInputStream();
+                return BitmapFactory.decodeStream(imageIs);
+            } catch (IOException | JSONException e) {
                 e.printStackTrace();
             }
-
-            return bmImg;
+            return null;
         }
 
-        protected void onPostExecute(Bitmap img){
-            imgView.setImageBitmap(bmImg);
+        protected void onPostExecute(Bitmap img) {
+            if (img != null) {
+                // 이미지를 UI 스레드에서 설정
+                imgView.setImageBitmap(img);
+            } else {
+                // 오류 처리
+                Log.e("API Error", "Failed to process URL: ");
+            }
+
+            // 새로운 이미지를 가져올 때 새로운 AsyncTask를 생성하여 실행
+            task = new CLoadImage();
         }
     }
 
-    public static void saveBitmaptoJpeg(Bitmap bitmap, String folder, String name) {
 
+    public static void saveBitmaptoJpeg(Bitmap bitmap, String folder, String name) {
         String ex_storage = Environment.getExternalStorageDirectory().getAbsolutePath();
         String folder_name = "/" + folder + "/";
         String file_name = name + ".jpg";
         String string_path = ex_storage + folder_name;
-        Log.d("경로", string_path);
 
-        File file_path;
-        file_path = new File(string_path);
+        File file_path = new File(string_path);
 
         if (!file_path.exists()) {
             file_path.mkdirs();
         }
 
-        try{
-            FileOutputStream out = new FileOutputStream(string_path+file_name);
-            bitmap.compress(Bitmap.CompressFormat.JPEG,100,out);
+        try {
+            FileOutputStream out = new FileOutputStream(string_path + file_name);
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, out);
             out.close();
-        }catch (FileNotFoundException exception){
+        } catch (FileNotFoundException exception) {
             Log.e("FileNotFoundException", exception.getMessage());
-        }catch (IOException exception){
-            Log.e("IOException",exception.getMessage());
+        } catch (IOException exception) {
+            Log.e("IOException", exception.getMessage());
         }
-
     }
 }
-
-
